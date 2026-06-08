@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }: any) {
   const [phone, setPhone] = useState('+880');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isPhoneFocused, setIsPhoneFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [role, setRole] = useState<'admin' | 'owner'>('admin');
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -27,6 +29,24 @@ export default function LoginScreen() {
 
           {/* Middle: Authentication Canvas */}
           <View style={styles.formContainer}>
+            {/* Role Selector */}
+            <View style={styles.roleSelector}>
+              <TouchableOpacity
+                style={[styles.roleButton, role === 'admin' && styles.roleButtonActive]}
+                onPress={() => setRole('admin')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.roleButtonText, role === 'admin' && styles.roleTextActive]}>ADMIN</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.roleButton, role === 'owner' && styles.roleButtonActive]}
+                onPress={() => setRole('owner')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.roleButtonText, role === 'owner' && styles.roleTextActive]}>GARAGE OWNER</Text>
+              </TouchableOpacity>
+            </View>
+
             {/* Phone Field */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>PHONE NUMBER</Text>
@@ -77,7 +97,11 @@ export default function LoginScreen() {
             </View>
 
             {/* Action Button */}
-            <TouchableOpacity style={styles.loginButton} activeOpacity={0.8}>
+            <TouchableOpacity 
+              style={styles.loginButton} 
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate(role === 'admin' ? 'AdminGarageGrid' : 'Fleet')}
+            >
               <Text style={styles.loginButtonText}>LOGIN</Text>
             </TouchableOpacity>
 
@@ -133,6 +157,33 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
+  },
+  roleSelector: {
+    flexDirection: 'row',
+    backgroundColor: '#141414',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1E1E1E',
+    marginBottom: 24,
+    padding: 4,
+  },
+  roleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  roleButtonActive: {
+    backgroundColor: '#FF6600',
+  },
+  roleButtonText: {
+    color: '#888888',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  roleTextActive: {
+    color: '#FFFFFF',
   },
   inputGroup: {
     marginBottom: 20,
