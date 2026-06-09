@@ -2,11 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function RevenueScreen({ navigation }: any) {
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#080808" />
+    <LinearGradient colors={['#1a0b02', '#080808']} style={styles.safeArea}>
+      <SafeAreaView style={{ flex: 1 }}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
       {/* Header */}
       <View style={styles.header}>
@@ -163,7 +165,7 @@ export default function RevenueScreen({ navigation }: any) {
 
       {/* Bottom Nav Bar */}
       <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Fleet')}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('MainTabs')}>
           <MaterialCommunityIcons name="truck-outline" size={24} color="#888888" />
           <Text style={styles.navText}>FLEET</Text>
         </TouchableOpacity>
@@ -181,23 +183,23 @@ export default function RevenueScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#080808',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     height: 64,
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.4)',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: 'rgba(255, 102, 0, 0.1)',
     paddingHorizontal: 16,
   },
   headerLeft: {
@@ -226,14 +228,19 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Space for bottom nav
   },
   summaryCard: {
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
     borderWidth: 1,
-    borderColor: '#1E1E1E',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     borderLeftWidth: 4,
     borderLeftColor: '#FF6600',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   summaryTop: {
     flexDirection: 'row',
@@ -276,12 +283,17 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   card: {
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
     borderWidth: 1,
-    borderColor: '#1E1E1E',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardDimmed: {
     opacity: 0.6,
@@ -314,12 +326,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   cardBody: {
-    backgroundColor: '#080808',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     padding: 12,
-    borderRadius: 4,
+    borderRadius: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.02)',
   },
   cardBodyBordered: {
     borderLeftWidth: 2,
@@ -378,10 +392,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   activityList: {
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
     borderWidth: 1,
-    borderColor: '#1E1E1E',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   activityRow: {
     flexDirection: 'row',
@@ -389,7 +404,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   activityRowLeft: {
     flexDirection: 'row',
@@ -398,10 +413,10 @@ const styles = StyleSheet.create({
   activityIconBox: {
     width: 32,
     height: 32,
-    backgroundColor: '#080808',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderWidth: 1,
-    borderColor: '#1E1E1E',
-    borderRadius: 4,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -444,9 +459,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.95)',
     borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
     height: 64,
   },
   navItem: {

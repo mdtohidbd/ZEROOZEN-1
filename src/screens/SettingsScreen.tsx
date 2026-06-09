@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Switch, Platform, Modal, TextInput, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function SettingsScreen({ route, navigation }: any) {
   const isAdmin = route.params?.isAdmin || false;
@@ -16,7 +17,11 @@ export default function SettingsScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#080808" />
+      <StatusBar barStyle="light-content" backgroundColor="#0f111a" />
+      <LinearGradient
+        colors={['#0f111a', '#080808']}
+        style={StyleSheet.absoluteFillObject}
+      />
       
       {/* Header */}
       <View style={styles.header}>
@@ -97,25 +102,6 @@ export default function SettingsScreen({ route, navigation }: any) {
 
       </ScrollView>
 
-      {/* Bottom Nav Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Fleet', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="truck-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>FLEET</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('LiveMap', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="map-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>LIVE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('People', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="account-group-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>PEOPLE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.navItem, styles.navItemActive]}>
-          <MaterialCommunityIcons name="cog" size={24} color="#FF6600" />
-          <Text style={[styles.navText, styles.navTextActive]}>SETTINGS</Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Sliding Drawer Menu */}
       <Modal
@@ -316,15 +302,15 @@ export default function SettingsScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#080808',
+    backgroundColor: '#080808', // fallback
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     height: 64,
-    backgroundColor: '#080808',
+    backgroundColor: 'rgba(20, 20, 20, 0.4)',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: 'rgba(255, 102, 0, 0.1)',
     paddingHorizontal: 16,
   },
   menuButton: {
@@ -344,12 +330,17 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // For bottom nav
   },
   card: {
-    backgroundColor: '#141414',
-    borderRadius: 8,
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#1E1E1E',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     marginBottom: 16,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   profileContent: {
     flexDirection: 'row',
@@ -401,7 +392,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   dangerCard: {
     marginTop: 8,
@@ -436,40 +427,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#333333',
     borderRadius: 1,
     marginTop: 8,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
-    height: 64,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  navItemActive: {
-    backgroundColor: '#362620', // surface-container-high
-    borderRadius: 8,
-    marginVertical: 4,
-  },
-  navText: {
-    color: '#888888',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  navTextActive: {
-    color: '#FFb596', // text-primary
   },
   drawerOverlay: {
     flex: 1,

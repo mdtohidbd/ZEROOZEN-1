@@ -2,20 +2,30 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ImageBackground, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const GARAGES = [
-  { id: '1', name: 'Mirpur Garage', total: 18, active: 11 },
-  { id: '2', name: 'Uttara Garage', total: 24, active: 19 },
-  { id: '3', name: 'Dhanmondi Garage', total: 12, active: 8 },
-  { id: '4', name: 'Motijheel Garage', total: 30, active: 22 },
-];
+import { useGarageContext, GARAGES } from '../context/GarageContext';
 
 export default function AdminGarageGridScreen({ navigation }: any) {
-  const renderGarageCard = ({ item }: { item: typeof GARAGES[0] }) => (
+  const { allVehicles, setCurrentGarageId } = useGarageContext();
+
+  const garagesWithStats = GARAGES.map(g => {
+    const garageVehicles = allVehicles.filter(v => v.garageId === g.id);
+    return {
+      ...g,
+      total: garageVehicles.length,
+      active: garageVehicles.filter(v => v.status === 'ACTIVE').length
+    };
+  });
+
+  const renderGarageCard = ({ item }: { item: typeof garagesWithStats[0] }) => (
     <TouchableOpacity 
       style={styles.card} 
       activeOpacity={0.8}
-      onPress={() => navigation.navigate('Fleet', { isAdmin: true, adminName: 'ZEROOZEN Admin' })}
+      onPress={() => {
+        setCurrentGarageId(item.id);
+        navigation.navigate('MainTabs', { isAdmin: true, adminName: 'ZEROOZEN Admin' });
+      }}
     >
       <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
       <Text style={styles.cardTotal}>{item.total} vehicles total</Text>
@@ -34,7 +44,11 @@ export default function AdminGarageGridScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#141414" />
+      <StatusBar barStyle="light-content" backgroundColor="#1a0b02" />
+      <LinearGradient
+        colors={['#1a0b02', '#080808']}
+        style={StyleSheet.absoluteFillObject}
+      />
       
       {/* Top App Bar */}
       <View style={styles.topAppBar}>
@@ -58,7 +72,7 @@ export default function AdminGarageGridScreen({ navigation }: any) {
 
         {/* Garage Grid */}
         <FlatList
-          data={GARAGES}
+          data={garagesWithStats}
           keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperStyle={styles.row}
@@ -76,26 +90,6 @@ export default function AdminGarageGridScreen({ navigation }: any) {
           )}
         />
       </View>
-
-      {/* Bottom Nav Bar (Reference from Brief & HTML) */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Fleet', { isAdmin: true, adminName: 'ZEROOZEN Admin' })}>
-          <MaterialCommunityIcons name="truck-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>Fleet</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('LiveMap', { isAdmin: true, adminName: 'ZEROOZEN Admin' })}>
-          <MaterialCommunityIcons name="map-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>Live</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('People', { isAdmin: true, adminName: 'ZEROOZEN Admin' })}>
-          <MaterialCommunityIcons name="account-group-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>People</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Settings', { isAdmin: true, adminName: 'ZEROOZEN Admin' })}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>Settings</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -103,17 +97,17 @@ export default function AdminGarageGridScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#080808',
+    backgroundColor: '#080808', // Fallback
   },
   topAppBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.4)', // transparent for gradient
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: 'rgba(255, 102, 0, 0.1)', // subtle brand colored border
   },
   topAppBarLeft: {
     flexDirection: 'row',
@@ -157,17 +151,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   card: {
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)', // Glassmorphism-ish
     borderWidth: 1,
-    borderColor: '#1E1E1E',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 102, 0, 0.15)', // brand hint
+    borderRadius: 12,
     padding: 16,
     borderLeftWidth: 4,
     borderLeftColor: '#FF6600',
     flex: 1,
     marginHorizontal: 4,
     position: 'relative',
-    minHeight: 100,
+    minHeight: 110,
+    shadowColor: '#FF6600',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
   },
   cardTitle: {
     color: '#FFFFFF',
@@ -235,26 +234,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
-    height: 64,
-  },
-  navItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-  },
-  navText: {
-    color: '#888888',
-    fontSize: 10,
-    fontWeight: '600',
-    marginTop: 4,
-    textTransform: 'uppercase',
   },
 });

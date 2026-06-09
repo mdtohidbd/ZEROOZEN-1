@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Platform, Image, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useGarageContext } from '../context/GarageContext';
 
 export default function DriverDetailScreen({ navigation, route }: any) {
   const defaultDriver = {
@@ -12,8 +13,11 @@ export default function DriverDetailScreen({ navigation, route }: any) {
     image: null,
     status: 'ASSIGNED'
   };
-  const initialDriver = route.params?.driver || defaultDriver;
-  const [localDriver, setLocalDriver] = useState(initialDriver);
+  
+  const { drivers, vehicles, assignDriver, unassignDriver } = useGarageContext();
+  const driverFromParam = route.params?.driver;
+  const contextDriver = drivers.find(d => d.id === driverFromParam?.id);
+  const localDriver = contextDriver || driverFromParam || defaultDriver;
 
   const [isReassignModalVisible, setReassignModalVisible] = useState(false);
   const [isRemoveModalVisible, setRemoveModalVisible] = useState(false);
@@ -24,12 +28,15 @@ export default function DriverDetailScreen({ navigation, route }: any) {
     type: 'success'
   });
 
-  const availableVehicles = [
-    'VH-002 · ZenGo Alfa',
-    'VH-005 · Kargo Alfa',
-    'VH-009 · Kargo Alfa MAX',
-    'VH-012 · ZenGo Alfa'
-  ];
+  const availableVehiclesList = vehicles
+    .filter(v => v.status === 'IDLE' && !v.driverId)
+    .map(v => `${v.id} · ${v.model}`);
+
+  const getAssignedVehicleText = () => {
+    if (!localDriver.assignedVehicleId) return 'No vehicle';
+    const v = vehicles.find(v => v.id === localDriver.assignedVehicleId);
+    return v ? `${v.id} · ${v.model}` : 'Unknown vehicle';
+  };
 
   const triggerToast = (message: string, type: 'success' | 'error') => {
     setToast({ visible: true, message, type });
@@ -39,22 +46,17 @@ export default function DriverDetailScreen({ navigation, route }: any) {
   };
 
   const handleUnassign = () => {
-    setLocalDriver((prev: any) => ({
-      ...prev,
-      assignedVehicle: 'No vehicle',
-      status: 'UNASSIGNED'
-    }));
-    triggerToast('Vehicle unassigned successfully', 'success');
+    if (localDriver.assignedVehicleId) {
+      unassignDriver(localDriver.assignedVehicleId);
+      triggerToast('Vehicle unassigned successfully', 'success');
+    }
   };
 
   const handleReassign = (selectedVehicle: string) => {
-    setLocalDriver((prev: any) => ({
-      ...prev,
-      assignedVehicle: selectedVehicle,
-      status: 'ASSIGNED'
-    }));
+    const vId = selectedVehicle.split(' ')[0];
+    assignDriver(vId, localDriver.id);
     setReassignModalVisible(false);
-    triggerToast(`Vehicle ${selectedVehicle.split(' ')[0]} assigned successfully`, 'success');
+    triggerToast(`Vehicle ${vId} assigned successfully`, 'success');
   };
 
   const handleRemoveConfirm = () => {
@@ -109,17 +111,16 @@ export default function DriverDetailScreen({ navigation, route }: any) {
             style={styles.infoRowTouchable}
             activeOpacity={0.8}
             onPress={() => {
-              if (localDriver.assignedVehicle !== 'No vehicle') {
-                const vId = localDriver.assignedVehicle.split(' ')[0];
-                navigation.navigate('VehicleDetail', { id: vId });
+              if (localDriver.assignedVehicleId) {
+                navigation.navigate('VehicleDetail', { id: localDriver.assignedVehicleId });
               }
             }}
           >
             <View>
               <Text style={styles.infoLabel}>ASSIGNED VEHICLE</Text>
-              <Text style={styles.infoValue}>{localDriver.assignedVehicle}</Text>
+              <Text style={styles.infoValue}>{getAssignedVehicleText()}</Text>
             </View>
-            {localDriver.assignedVehicle !== 'No vehicle' && (
+            {localDriver.assignedVehicleId && (
               <MaterialCommunityIcons name="chevron-right" size={24} color="#FF6600" />
             )}
           </TouchableOpacity>
@@ -136,7 +137,7 @@ export default function DriverDetailScreen({ navigation, route }: any) {
             <MaterialCommunityIcons name="chevron-right" size={24} color="#FF6600" />
           </TouchableOpacity>
           
-          {localDriver.assignedVehicle !== 'No vehicle' && (
+          {localDriver.assignedVehicleId && (
             <TouchableOpacity 
               style={styles.actionButton} 
               activeOpacity={0.8}
@@ -196,7 +197,10 @@ export default function DriverDetailScreen({ navigation, route }: any) {
         >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Assign Vehicle</Text>
-            {availableVehicles.map((v, index) => (
+            {availableVehiclesList.length === 0 && (
+              <Text style={{ color: '#888', padding: 8 }}>No idle vehicles available.</Text>
+            )}
+            {availableVehiclesList.map((v, index) => (
               <TouchableOpacity 
                 key={index}
                 style={styles.modalOption}
@@ -204,9 +208,9 @@ export default function DriverDetailScreen({ navigation, route }: any) {
               >
                 <Text style={[
                   styles.modalOptionText, 
-                  localDriver.assignedVehicle === v && { color: '#FF6600', fontWeight: 'bold' }
+                  getAssignedVehicleText() === v && { color: '#FF6600', fontWeight: 'bold' }
                 ]}>{v}</Text>
-                {localDriver.assignedVehicle === v && <MaterialCommunityIcons name="check" size={20} color="#FF6600" />}
+                {getAssignedVehicleText() === v && <MaterialCommunityIcons name="check" size={20} color="#FF6600" />}
               </TouchableOpacity>
             ))}
           </View>
@@ -250,26 +254,6 @@ export default function DriverDetailScreen({ navigation, route }: any) {
           </View>
         </View>
       </Modal>
-
-      {/* Bottom Nav Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Fleet')}>
-          <MaterialCommunityIcons name="truck-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>FLEET</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('LiveMap')}>
-          <MaterialCommunityIcons name="map-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>LIVE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.navItem, styles.navItemActive]} onPress={() => navigation.navigate('People')}>
-          <MaterialCommunityIcons name="account-group" size={24} color="#FF6600" />
-          <Text style={[styles.navText, styles.navTextActive]}>PEOPLE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Settings')}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>SETTINGS</Text>
-        </TouchableOpacity>
-      </View>
 
     </SafeAreaView>
   );
@@ -412,40 +396,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 12,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
-    height: 64,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  navItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: '#FF6600',
-    marginTop: -2,
-  },
-  navText: {
-    color: '#888888',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  navTextActive: {
-    color: '#FF6600',
   },
   toastContainer: {
     position: 'absolute',

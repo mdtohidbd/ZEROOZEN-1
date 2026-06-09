@@ -2,54 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-// Mock Data
-const MOCK_VEHICLES = [
-  {
-    id: 'VH-001',
-    model: 'ZenGo Alfa',
-    driver: 'Rahman',
-    status: 'ACTIVE',
-    paymentType: 'DIGITAL',
-    battery: 82,
-    revenue: 670,
-    dailyRent: null,
-    paymentStatus: null,
-  },
-  {
-    id: 'VH-002',
-    model: 'ZenGo Alfa',
-    driver: 'Ahmed',
-    status: 'CHARGING',
-    paymentType: 'DIGITAL',
-    battery: 24,
-    revenue: 350,
-    dailyRent: null,
-    paymentStatus: null,
-  },
-  {
-    id: 'VH-022',
-    model: 'Kargo Alfa',
-    driver: 'Karim',
-    status: 'ACTIVE',
-    paymentType: 'CASH',
-    battery: 45,
-    revenue: null,
-    dailyRent: 400,
-    paymentStatus: 'UNPAID',
-  },
-  {
-    id: 'VH-031',
-    model: 'Kargo Alfa',
-    driver: null, // Unassigned
-    status: 'IDLE',
-    paymentType: 'CASH',
-    battery: 12,
-    revenue: null,
-    dailyRent: 400,
-    paymentStatus: 'PAID',
-  }
-];
+import { useGarageContext, Vehicle } from '../context/GarageContext';
 
 const FILTERS = ['ALL', 'ACTIVE', 'CHARGING', 'IDLE', 'OFFLINE', 'PENDING'];
 
@@ -65,13 +20,16 @@ export default function FleetScreen({ route, navigation }: any) {
   const isAdmin = route.params?.isAdmin || false;
   const adminName = route.params?.adminName || '';
   const [activeFilter, setActiveFilter] = useState('ALL');
+  const { vehicles, drivers, currentGarage } = useGarageContext();
 
-  const filteredVehicles = MOCK_VEHICLES.filter(v => 
+  const filteredVehicles = vehicles.filter(v => 
     activeFilter === 'ALL' ? true : v.status === activeFilter
   );
 
   const renderFilterChip = ({ item }: { item: string }) => {
     const isActive = item === activeFilter;
+    const count = item === 'ALL' ? vehicles.length : vehicles.filter(v => v.status === item).length;
+    
     return (
       <TouchableOpacity
         style={[styles.filterChip, isActive && styles.filterChipActive]}
@@ -79,14 +37,15 @@ export default function FleetScreen({ route, navigation }: any) {
         activeOpacity={0.8}
       >
         <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-          {item}
+          {item} <Text style={styles.filterChipCount}>({count})</Text>
         </Text>
       </TouchableOpacity>
     );
   };
 
-  const renderVehicleCard = ({ item }: { item: typeof MOCK_VEHICLES[0] }) => {
+  const renderVehicleCard = ({ item }: { item: Vehicle }) => {
     const statusColor = STATUS_COLORS[item.status] || '#9CA3AF';
+    const driver = item.driverId ? drivers.find(d => d.id === item.driverId) : null;
     
     return (
       <TouchableOpacity 
@@ -103,8 +62,8 @@ export default function FleetScreen({ route, navigation }: any) {
 
         <View style={styles.cardBody}>
           <Text style={styles.cardModel}>{item.model}</Text>
-          {item.driver ? (
-            <Text style={styles.cardDriver}>{item.driver}</Text>
+          {driver ? (
+            <Text style={styles.cardDriver}>{driver.name}</Text>
           ) : (
             <View style={styles.unassignedBadge}>
               <Text style={styles.unassignedText}>Unassigned</Text>
@@ -138,7 +97,7 @@ export default function FleetScreen({ route, navigation }: any) {
                 )}
                 <Text style={styles.rentText}>৳{item.dailyRent}/day</Text>
               </View>
-              {!item.driver && (
+              {!driver && (
                 <MaterialCommunityIcons name="account-off-outline" size={16} color="#888888" />
               )}
             </View>
@@ -150,7 +109,11 @@ export default function FleetScreen({ route, navigation }: any) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#141414" />
+      <StatusBar barStyle="light-content" backgroundColor="#0f111a" />
+      <LinearGradient
+        colors={['#0f111a', '#080808']}
+        style={StyleSheet.absoluteFillObject}
+      />
       
       {/* Top App Bar */}
       <View style={styles.header}>
@@ -161,7 +124,9 @@ export default function FleetScreen({ route, navigation }: any) {
             </TouchableOpacity>
           )}
           <MaterialCommunityIcons name="map-marker" size={24} color="#FF6600" />
-          <Text style={[styles.headerTitle, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">MIRPUR GARAGE</Text>
+          <Text style={[styles.headerTitle, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">
+            {currentGarage ? currentGarage.name.toUpperCase() : 'GARAGE'}
+          </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
           {isAdmin && (
@@ -179,7 +144,7 @@ export default function FleetScreen({ route, navigation }: any) {
       <View style={styles.statsContainer}>
         <Text style={styles.statsLabel}>FLEET OVERVIEW</Text>
         <View style={styles.statsRow}>
-          <Text style={styles.statsNumber}>50</Text>
+          <Text style={styles.statsNumber}>{vehicles.length}</Text>
           <Text style={styles.statsText}>VEHICLES</Text>
         </View>
       </View>
@@ -216,25 +181,6 @@ export default function FleetScreen({ route, navigation }: any) {
         <MaterialCommunityIcons name="plus" size={32} color="#FFFFFF" />
       </TouchableOpacity>
 
-      {/* Bottom Nav */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={[styles.navItem, styles.navItemActive]}>
-          <MaterialCommunityIcons name="truck" size={24} color="#FF6600" />
-          <Text style={[styles.navText, styles.navTextActive]}>FLEET</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('LiveMap', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="map-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>LIVE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('People', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="account-group-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>PEOPLE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Settings', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>SETTINGS</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -242,7 +188,7 @@ export default function FleetScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#080808',
+    backgroundColor: '#080808', // fallback
   },
   header: {
     flexDirection: 'row',
@@ -250,9 +196,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.4)',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: 'rgba(255, 102, 0, 0.1)',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -323,6 +269,10 @@ const styles = StyleSheet.create({
   filterChipTextActive: {
     color: '#FFFFFF',
   },
+  filterChipCount: {
+    opacity: 0.5,
+    fontSize: 10,
+  },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 100, // padding for FAB and bottom nav
@@ -333,15 +283,20 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
     borderWidth: 1,
-    borderColor: '#1E1E1E',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
     borderLeftWidth: 4,
     padding: 12,
     marginHorizontal: 4,
     minHeight: 140,
     justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: 'column',
@@ -456,38 +411,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 8,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
-    height: 64,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  navItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: '#FF6600',
-  },
-  navText: {
-    color: '#888888',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  navTextActive: {
-    color: '#FF6600',
   },
 });

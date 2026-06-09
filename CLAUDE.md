@@ -1,6 +1,6 @@
-# GarageApp — Project Memory
+# ZEROOZEN-1 — Project Memory
 
-> Auto-synced | 91 observations
+> Auto-synced | 157 observations
 
 ## 🏛️ CORE ARCHITECTURE
 

@@ -2,26 +2,36 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, StatusBar, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const MOCK_DRIVERS = [
-  { id: '1', name: 'Rahman', phone: '+880 1711-223344', nid: '1234567890123', assignedVehicle: 'VH-001 · ZenGo Alfa', avatar: 'R', image: null, status: 'ASSIGNED' },
-  { id: '2', name: 'Karim', phone: '+880 1712-345678', nid: '1234567890124', assignedVehicle: 'VH-003 · Kargo Alfa', avatar: null, image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA_Afnx3bCijJVZeqK7ljp7tWCnHNxowHSewSy_e5SOCNpqCMlDGnmS8KVSIYLtwMe9VOGYmk5Gm2UI3lbzWtGu6B8M_Ey3CmWHWHOBjIaL9jMIpYTUIpC7oyHCkNgzVA5xtEUEiC9zEFoI7HctUWdIg_qZKdYlffFB8T1zvpjSJCnYU3cLwk_YJLuba7rE_e4-H91ouNxDAxBSU0MxktKSi17vUXY9buNtBNqUWQxn0LkY6q-eAfA5VudbT4LB-0z0yG9mitfRfZ0k', status: 'ASSIGNED' },
-  { id: '3', name: 'Hossain', phone: '+880 1713-456789', nid: '1234567890125', assignedVehicle: 'No vehicle', avatar: null, image: null, status: 'UNASSIGNED' },
-  { id: '4', name: 'Jamal', phone: '+880 1714-567890', nid: '1234567890126', assignedVehicle: 'VH-007 · ZenGo Alfa', avatar: null, image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCJxGrssOZ_Eh94UdN-DEG-qEy9J-uSW-Eep47910nXF_cbWQY7JOi_TV-97_g0We_E3O41VQXGnr0txCpKg_4_CEsRXjnzOnfSFmaxFHcmm7Mr-T8vtlV3RrfjTuUtxG0_bi0WVKRqD0CkKPGOqKdqJPwqYapzoDp1Bgso85tyX1cLDo4mdUVbR1_NADthoQLiwZ3eIiHO3Qs1we58YqrS2FeeFJvtVfzdgYvH7Wmc-yVRviu-1cG-oenj7OzLYBOmZLQwOZcCCG6t', status: 'ASSIGNED' }
-];
+import { useGarageContext, Driver } from '../context/GarageContext';
 
 export default function PeopleScreen({ route, navigation }: any) {
   const isAdmin = route.params?.isAdmin || false;
   const adminName = route.params?.adminName || '';
+  const { drivers, vehicles } = useGarageContext();
   const [searchText, setSearchText] = useState('');
 
-  const filteredDrivers = MOCK_DRIVERS.filter(driver =>
+  const filteredDrivers = drivers.filter(driver =>
     driver.name.toLowerCase().includes(searchText.toLowerCase())
   );
 
+  const getAssignedVehicleText = (item: Driver) => {
+    if (!item.assignedVehicleId) return 'No vehicle';
+    const v = vehicles.find(v => v.id === item.assignedVehicleId);
+    return v ? `${v.id} · ${v.model}` : 'Unknown vehicle';
+  };
+
+  const activeDriversCount = drivers.filter(d => d.status === 'ASSIGNED').length;
+  const unassignedCount = drivers.filter(d => d.status === 'UNASSIGNED').length;
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#141414" />
+      <StatusBar barStyle="light-content" backgroundColor="#0f111a" />
+      <LinearGradient
+        colors={['#0f111a', '#080808']}
+        style={StyleSheet.absoluteFillObject}
+      />
       
       {/* TopAppBar */}
       <View style={styles.header}>
@@ -86,7 +96,7 @@ export default function PeopleScreen({ route, navigation }: any) {
                     )}
                     <View>
                       <Text style={styles.driverName}>{item.name}</Text>
-                      <Text style={[styles.driverInfo, isUnassigned && { fontStyle: 'italic' }]}>{item.assignedVehicle}</Text>
+                      <Text style={[styles.driverInfo, isUnassigned && { fontStyle: 'italic' }]}>{getAssignedVehicleText(item)}</Text>
                     </View>
                   </View>
                   {isUnassigned ? (
@@ -106,39 +116,18 @@ export default function PeopleScreen({ route, navigation }: any) {
           })}
         </View>
 
-        {/* Secondary Info Cards (Bento Style) */}
         <View style={styles.bentoGrid}>
           <View style={styles.bentoCard}>
             <Text style={styles.bentoLabel}>ACTIVE DRIVERS</Text>
-            <Text style={styles.bentoNumberOrange}>08</Text>
+            <Text style={styles.bentoNumberOrange}>{activeDriversCount < 10 ? `0${activeDriversCount}` : activeDriversCount}</Text>
           </View>
           <View style={styles.bentoCard}>
-            <Text style={styles.bentoLabel}>PENDING INVITES</Text>
-            <Text style={styles.bentoNumberWhite}>02</Text>
+            <Text style={styles.bentoLabel}>UNASSIGNED DRIVERS</Text>
+            <Text style={styles.bentoNumberWhite}>{unassignedCount < 10 ? `0${unassignedCount}` : unassignedCount}</Text>
           </View>
         </View>
 
       </ScrollView>
-
-      {/* Bottom Nav Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Fleet', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="truck-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>FLEET</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('LiveMap', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="map-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>LIVE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.navItem, styles.navItemActive]}>
-          <MaterialCommunityIcons name="account-group" size={24} color="#FF6600" />
-          <Text style={[styles.navText, styles.navTextActive]}>PEOPLE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Settings', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>SETTINGS</Text>
-        </TouchableOpacity>
-      </View>
 
     </SafeAreaView>
   );
@@ -147,16 +136,16 @@ export default function PeopleScreen({ route, navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#080808',
+    backgroundColor: '#080808', // fallback
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     height: 64,
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.4)',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: 'rgba(255, 102, 0, 0.1)',
     paddingHorizontal: 16,
   },
   headerLeft: {
@@ -182,13 +171,18 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
     borderWidth: 1,
-    borderColor: '#1E1E1E',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
     height: 48,
     paddingHorizontal: 16,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchIcon: {
     marginRight: 8,
@@ -199,18 +193,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   listContainer: {
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
     borderWidth: 1,
-    borderColor: '#1E1E1E',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#141414',
+    backgroundColor: 'transparent',
   },
   rowUnassigned: {
     backgroundColor: 'rgba(255,102,0,0.05)',
@@ -301,7 +300,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   bentoGrid: {
     flexDirection: 'row',
@@ -311,11 +310,16 @@ const styles = StyleSheet.create({
   },
   bentoCard: {
     flex: 1,
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
     borderWidth: 1,
-    borderColor: '#1E1E1E',
-    borderRadius: 8,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   bentoLabel: {
     color: '#888888',
@@ -335,39 +339,5 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     fontFamily: 'monospace',
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
-    height: 64,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  navItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: '#FF6600',
-    marginTop: -2,
-  },
-  navText: {
-    color: '#888888',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  navTextActive: {
-    color: '#FF6600',
   },
 });

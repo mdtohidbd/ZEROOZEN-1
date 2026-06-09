@@ -1,24 +1,98 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, StatusBar, Platform } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, StatusBar, Platform, Animated, PanResponder } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-// Mock pin data
-const PINS = [
-  { id: '1', top: '30%', left: '40%', status: 'ACTIVE', color: '#22C55E', icon: 'truck', vehicleId: 'VH-001', driver: 'Rahman', battery: 82, speed: 42, todayKm: 67 },
-  { id: '2', top: '32%', left: '42%', status: 'ACTIVE', color: '#22C55E', icon: 'truck', vehicleId: 'VH-002', driver: 'Ahmed', battery: 75, speed: 38, todayKm: 80 },
-  { id: '3', top: '28%', left: '45%', status: 'ACTIVE', color: '#22C55E', icon: 'truck', vehicleId: 'VH-003', driver: 'Kamal', battery: 60, speed: 45, todayKm: 110 },
-  { id: '4', top: '50%', left: '55%', status: 'CHARGING', color: '#3B82F6', icon: 'ev-station', vehicleId: 'VH-004', driver: 'Jalal', battery: 24, speed: 0, todayKm: 40 },
-  { id: '5', top: '65%', left: '30%', status: 'IDLE', color: '#9CA3AF', icon: 'pause', vehicleId: 'VH-005', driver: null, battery: 45, speed: 0, todayKm: 12 },
-  { id: '6', top: '20%', left: '70%', status: 'OFFLINE', color: '#EF4444', icon: 'wifi-off', vehicleId: 'VH-006', driver: 'Hasan', battery: 10, speed: 0, todayKm: 0 },
-];
+import { useGarageContext, Vehicle } from '../context/GarageContext';
 
 export default function LiveMapScreen({ route, navigation }: any) {
   const isAdmin = route.params?.isAdmin || false;
   const adminName = route.params?.adminName || '';
+  const { vehicles, drivers, currentGarage } = useGarageContext();
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
 
-  const selectedPin = PINS.find(p => p.id === selectedPinId);
+  // Zoom & Pan state
+  const scale = useRef(new Animated.Value(1)).current;
+  const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const scaleValue = useRef(1);
+  const panValue = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const scaleSub = scale.addListener((value) => { scaleValue.current = value.value; });
+    const panSub = pan.addListener((value) => { panValue.current = value; });
+    return () => {
+      scale.removeListener(scaleSub);
+      pan.removeListener(panSub);
+    };
+  }, []);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderGrant: () => {
+        pan.setOffset({ x: panValue.current.x, y: panValue.current.y });
+        pan.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: Animated.event(
+        [null, { dx: pan.x, dy: pan.y }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: () => {
+        pan.flattenOffset();
+      }
+    })
+  ).current;
+
+  const handleZoomIn = () => {
+    const nextScale = Math.min(scaleValue.current + 0.5, 3);
+    Animated.spring(scale, { toValue: nextScale, useNativeDriver: false }).start();
+  };
+
+  const handleZoomOut = () => {
+    const nextScale = Math.max(scaleValue.current - 0.5, 1);
+    Animated.spring(scale, { toValue: nextScale, useNativeDriver: false }).start();
+    if (nextScale === 1) {
+      Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+    }
+  };
+
+  const handleResetZoom = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: false }),
+      Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false })
+    ]).start();
+  };
+
+  const pins = vehicles.map(v => {
+    const driver = v.driverId ? drivers.find(d => d.id === v.driverId) : null;
+    let color = '#9CA3AF';
+    let icon = 'truck';
+    if (v.status === 'ACTIVE') color = '#22C55E';
+    if (v.status === 'CHARGING') { color = '#3B82F6'; icon = 'ev-station'; }
+    if (v.status === 'IDLE') { color = '#9CA3AF'; icon = 'pause'; }
+    if (v.status === 'OFFLINE') { color = '#EF4444'; icon = 'wifi-off'; }
+    if (v.status === 'PENDING') { color = '#F59E0B'; icon = 'alert-circle-outline'; }
+
+    return {
+      id: v.id,
+      top: v.location.top,
+      left: v.location.left,
+      status: v.status,
+      color,
+      icon,
+      vehicleId: v.id,
+      driver: driver ? driver.name : null,
+      battery: v.battery,
+      speed: v.speed,
+      todayKm: v.todayKm,
+    };
+  });
+
+  const selectedPin = pins.find(p => p.id === selectedPinId);
+  const activeCount = vehicles.filter(v => v.status === 'ACTIVE').length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -33,7 +107,7 @@ export default function LiveMapScreen({ route, navigation }: any) {
             </TouchableOpacity>
           )}
           <MaterialCommunityIcons name="lightning-bolt" size={24} color="#FF6600" />
-          <Text style={[styles.headerTitle, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">LIVE FLEET MONITOR</Text>
+          <Text style={[styles.headerTitle, { flexShrink: 1 }]} numberOfLines={1} ellipsizeMode="tail">{currentGarage ? currentGarage.name.toUpperCase() + ' MAP' : 'LIVE FLEET MONITOR'}</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
           {isAdmin && (
@@ -49,47 +123,56 @@ export default function LiveMapScreen({ route, navigation }: any) {
 
       {/* Main Map View */}
       <View style={styles.mapContainer}>
-        <ImageBackground 
-          source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAua9KWg8fAUCRYG906P90NvFjtAdemW_MPqrW_HJIAFuEqhVYiImXFKy25lfX-YL3FqYlkHkrdyX4I7EqdyebWuaqnU6MGtXh5e5MYMbc6BsS-jzIWCF7KFOm3vG0pAw4jJukzan6sYIIfHEiB7ir8BqAOzn705UxFCmog7N3W3WOSdJdK4rfapF7CpVlAAQEc8hz3iRLayfL9QcOluCz-TYzDN1h0g2IRFvMX8TwfwhxyWeezjBNdTCAtGFFr1RqV59b3wBOc7I_T' }}
-          style={styles.mapImage}
-          resizeMode="cover"
+        {/* Zoom Controls Overlay (Outside animated view to stay fixed) */}
+        <View style={styles.zoomControls}>
+          <TouchableOpacity style={styles.zoomButton} onPress={handleZoomIn}>
+            <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.zoomButton, { borderTopWidth: 0 }]} onPress={handleZoomOut}>
+            <MaterialCommunityIcons name="minus" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.zoomButton, { marginTop: 8 }]} onPress={handleResetZoom}>
+            <MaterialCommunityIcons name="crosshairs-gps" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        <Animated.View 
+          style={[
+            styles.animatedMapWrapper, 
+            { transform: [{ scale }, { translateX: pan.x }, { translateY: pan.y }] }
+          ]}
+          {...panResponder.panHandlers}
         >
-          {/* Zoom Controls Overlay */}
-          <View style={styles.zoomControls}>
-            <TouchableOpacity style={styles.zoomButton}>
-              <MaterialCommunityIcons name="plus" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.zoomButton, { borderTopWidth: 0 }]}>
-              <MaterialCommunityIcons name="minus" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.zoomButton, { marginTop: 8 }]}>
-              <MaterialCommunityIcons name="crosshairs-gps" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
+          <ImageBackground 
+            source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAua9KWg8fAUCRYG906P90NvFjtAdemW_MPqrW_HJIAFuEqhVYiImXFKy25lfX-YL3FqYlkHkrdyX4I7EqdyebWuaqnU6MGtXh5e5MYMbc6BsS-jzIWCF7KFOm3vG0pAw4jJukzan6sYIIfHEiB7ir8BqAOzn705UxFCmog7N3W3WOSdJdK4rfapF7CpVlAAQEc8hz3iRLayfL9QcOluCz-TYzDN1h0g2IRFvMX8TwfwhxyWeezjBNdTCAtGFFr1RqV59b3wBOc7I_T' }}
+            style={styles.mapImage}
+            resizeMode="cover"
+          >
+            {/* Vehicle Pins */}
+            {pins.map(pin => {
+              const isSelected = selectedPinId === pin.id;
+              const size = isSelected ? 40 : 32;
+              const bgColor = isSelected ? '#FF6600' : pin.color;
+              const iconColor = (isSelected || pin.status === 'ACTIVE') ? '#000000' : '#FFFFFF';
 
-          {/* Vehicle Pins */}
-          {PINS.map(pin => {
-            const isSelected = selectedPinId === pin.id;
-            const size = isSelected ? 40 : 32;
-            const bgColor = isSelected ? '#FF6600' : pin.color;
-            const iconColor = (isSelected || pin.status === 'ACTIVE') ? '#000000' : '#FFFFFF';
-
-            return (
-              <TouchableOpacity
-                key={pin.id}
-                style={[
-                  styles.pin,
-                  { top: pin.top as any, left: pin.left as any },
-                  { width: size, height: size, backgroundColor: bgColor, borderRadius: size / 2 },
-                  isSelected && styles.pinSelected
-                ]}
-                activeOpacity={0.9}
-                onPress={() => setSelectedPinId(isSelected ? null : pin.id)}
-              >
-                <MaterialCommunityIcons name={pin.icon as any} size={size * 0.5} color={iconColor} />
-              </TouchableOpacity>
-            );
-          })}
+              return (
+                <TouchableOpacity
+                  key={pin.id}
+                  style={[
+                    styles.pin,
+                    { top: pin.top as any, left: pin.left as any },
+                    { width: size, height: size, backgroundColor: bgColor, borderRadius: size / 2 },
+                    isSelected && styles.pinSelected
+                  ]}
+                  activeOpacity={0.9}
+                  onPress={() => setSelectedPinId(isSelected ? null : pin.id)}
+                >
+                  <MaterialCommunityIcons name={pin.icon as any} size={size * 0.5} color={iconColor} />
+                </TouchableOpacity>
+              );
+            })}
+          </ImageBackground>
+        </Animated.View>
 
           {/* Floating Pill - Always visible unless a pin is selected and covering it, but we'll put it above the bottom nav */}
           {!selectedPinId && (
@@ -97,25 +180,25 @@ export default function LiveMapScreen({ route, navigation }: any) {
               <View style={styles.floatingPill}>
                 <View style={styles.pillActiveSection}>
                   <View style={styles.pulseDot} />
-                  <Text style={styles.pillActiveText}>11 Active Now</Text>
+                  <Text style={styles.pillActiveText}>{activeCount} Active Now</Text>
                 </View>
                 <View style={styles.pillDivider} />
                 <View style={styles.pillStatsSection}>
                   <View style={styles.pillStat}>
                     <MaterialCommunityIcons name="trending-up" size={16} color="#888888" />
-                    <Text style={[styles.pillStatNumber, { color: '#888888' }]}>6</Text>
+                    <Text style={[styles.pillStatNumber, { color: '#888888' }]}>{vehicles.length}</Text>
                   </View>
                   <View style={styles.pillStat}>
                     <MaterialCommunityIcons name="lightning-bolt" size={16} color="#3B82F6" />
-                    <Text style={[styles.pillStatNumber, { color: '#3B82F6' }]}>2</Text>
+                    <Text style={[styles.pillStatNumber, { color: '#3B82F6' }]}>{vehicles.filter(v => v.status === 'CHARGING').length}</Text>
                   </View>
                   <View style={styles.pillStat}>
                     <MaterialCommunityIcons name="pause" size={16} color="#9CA3AF" />
-                    <Text style={[styles.pillStatNumber, { color: '#9CA3AF' }]}>2</Text>
+                    <Text style={[styles.pillStatNumber, { color: '#9CA3AF' }]}>{vehicles.filter(v => v.status === 'IDLE').length}</Text>
                   </View>
                   <View style={styles.pillStat}>
                     <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#EF4444" />
-                    <Text style={[styles.pillStatNumber, { color: '#EF4444' }]}>1</Text>
+                    <Text style={[styles.pillStatNumber, { color: '#EF4444' }]}>{vehicles.filter(v => v.status === 'OFFLINE').length}</Text>
                   </View>
                 </View>
               </View>
@@ -157,27 +240,6 @@ export default function LiveMapScreen({ route, navigation }: any) {
               </View>
             </View>
           )}
-        </ImageBackground>
-      </View>
-
-      {/* Bottom Nav Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Fleet', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="truck-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>FLEET</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.navItem, styles.navItemActive]}>
-          <MaterialCommunityIcons name="map" size={24} color="#FF6600" />
-          <Text style={[styles.navText, styles.navTextActive]}>LIVE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('People', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="account-group-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>PEOPLE</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate('Settings', { isAdmin, adminName })}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#888888" />
-          <Text style={styles.navText}>SETTINGS</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -193,9 +255,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     height: 56,
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.4)',
     borderBottomWidth: 1,
-    borderBottomColor: '#1E1E1E',
+    borderBottomColor: 'rgba(255, 102, 0, 0.1)',
     paddingHorizontal: 16,
     zIndex: 10,
   },
@@ -223,6 +285,12 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     position: 'relative',
+    overflow: 'hidden',
+  },
+  animatedMapWrapper: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
   },
   mapImage: {
     flex: 1,
@@ -274,13 +342,13 @@ const styles = StyleSheet.create({
   },
   floatingPill: {
     flexDirection: 'row',
-    backgroundColor: '#141414',
+    backgroundColor: 'rgba(20, 20, 20, 0.6)',
     borderRadius: 24,
     height: 48,
     alignItems: 'center',
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#333333',
+    borderColor: 'rgba(255, 255, 255, 0.05)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
@@ -332,10 +400,10 @@ const styles = StyleSheet.create({
     zIndex: 40,
   },
   miniCard: {
-    backgroundColor: '#141414',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#FF6600',
+    backgroundColor: 'rgba(20, 20, 20, 0.8)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 102, 0, 0.5)',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -387,11 +455,11 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   speedBox: {
-    backgroundColor: '#080808',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     padding: 8,
-    borderRadius: 4,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1E1E1E',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     width: 80,
@@ -416,34 +484,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 1,
     marginRight: 8,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#141414',
-    borderTopWidth: 1,
-    borderTopColor: '#1E1E1E',
-    height: 64,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  navItemActive: {
-    borderTopWidth: 2,
-    borderTopColor: '#FF6600',
-  },
-  navText: {
-    color: '#888888',
-    fontSize: 10,
-    fontWeight: '700',
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  navTextActive: {
-    color: '#FF6600',
   },
 });

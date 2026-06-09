@@ -100,7 +100,7 @@ export default function LoginScreen({ navigation }: any) {
             <TouchableOpacity 
               style={styles.loginButton} 
               activeOpacity={0.8}
-              onPress={() => navigation.navigate(role === 'admin' ? 'AdminGarageGrid' : 'Fleet')}
+              onPress={() => navigation.navigate(role === 'admin' ? 'AdminGarageGrid' : 'MainTabs')}
             >
               <Text style={styles.loginButtonText}>LOGIN</Text>
             </TouchableOpacity>

@@ -1,9 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Modal, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, Modal, Platform, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useGarageContext } from '../context/GarageContext';
 
-export default function VehicleDetailScreen({ navigation }: any) {
+const STATUS_COLORS: Record<string, string> = {
+  ACTIVE: '#22C55E',
+  CHARGING: '#3B82F6',
+  IDLE: '#9CA3AF',
+  OFFLINE: '#EF4444',
+  PENDING: '#F59E0B',
+};
+
+export default function VehicleDetailScreen({ navigation, route }: any) {
+  const { vehicles, drivers } = useGarageContext();
+  const vehicleId = route?.params?.id || 'VH-001';
+  const vehicle = vehicles.find(v => v.id === vehicleId) || vehicles[0];
+  const driver = vehicle?.driverId ? drivers.find(d => d.id === vehicle.driverId) : null;
+  const statusColor = STATUS_COLORS[vehicle?.status || 'IDLE'] || '#9CA3AF';
   const [engineOn, setEngineOn] = useState(true);
   const [isKillSwitchModalVisible, setKillSwitchModalVisible] = useState(false);
   const [pendingAction, setPendingAction] = useState<'enable' | 'disable' | null>(null);
@@ -66,34 +80,49 @@ export default function VehicleDetailScreen({ navigation }: any) {
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>VH-001</Text>
+          <Text style={styles.headerTitle}>{vehicle?.id || 'Unknown'}</Text>
         </View>
         <View style={styles.statusBadge}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusBadgeText}>ACTIVE</Text>
+          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+          <Text style={[styles.statusBadgeText, { color: statusColor }]}>{vehicle?.status || 'UNKNOWN'}</Text>
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: vehicle?.paymentType === 'DIGITAL' ? 120 : 32 }]} showsVerticalScrollIndicator={false}>
         
         {/* Driver Section */}
         <View style={styles.driverSection}>
           <Text style={styles.sectionLabel}>DRIVER</Text>
-          <Text style={styles.driverName}>Rahman</Text>
-          <Text style={styles.driverPhone}>+880 1711-223344</Text>
+          <Text style={styles.driverName}>{driver ? driver.name : 'Unassigned'}</Text>
+          <Text style={styles.driverPhone}>{driver ? driver.phone : '--'}</Text>
         </View>
 
         {/* Map Section */}
         <View style={styles.mapWrapper}>
           <View style={styles.mapContainer}>
-            {/* Placeholder for map */}
-            <MaterialCommunityIcons name="map-marker" size={48} color="#FF6600" />
-            <View style={styles.liveGpsBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.liveGpsText}>LIVE GPS</Text>
-            </View>
+            <ImageBackground 
+              source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAua9KWg8fAUCRYG906P90NvFjtAdemW_MPqrW_HJIAFuEqhVYiImXFKy25lfX-YL3FqYlkHkrdyX4I7EqdyebWuaqnU6MGtXh5e5MYMbc6BsS-jzIWCF7KFOm3vG0pAw4jJukzan6sYIIfHEiB7ir8BqAOzn705UxFCmog7N3W3WOSdJdK4rfapF7CpVlAAQEc8hz3iRLayfL9QcOluCz-TYzDN1h0g2IRFvMX8TwfwhxyWeezjBNdTCAtGFFr1RqV59b3wBOc7I_T' }}
+              style={styles.mapImage}
+              resizeMode="cover"
+            >
+              {/* Dynamic Vehicle Pin */}
+              {vehicle?.location && (
+                <View style={[
+                  styles.pin,
+                  { top: vehicle.location.top as any, left: vehicle.location.left as any },
+                  { width: 32, height: 32, backgroundColor: statusColor, borderRadius: 16 }
+                ]}>
+                  <MaterialCommunityIcons name="truck" size={16} color={statusColor === '#22C55E' ? '#000000' : '#FFFFFF'} />
+                </View>
+              )}
+
+              <View style={styles.liveGpsBadge}>
+                <View style={[styles.statusDot, { backgroundColor: '#22C55E' }]} />
+                <Text style={styles.liveGpsText}>LIVE GPS</Text>
+              </View>
+            </ImageBackground>
           </View>
-          <Text style={styles.lastSeenText}>Last seen: 9:14 AM</Text>
+          <Text style={styles.lastSeenText}>Last seen: Just now</Text>
         </View>
 
         {/* Stats Row */}
@@ -101,39 +130,56 @@ export default function VehicleDetailScreen({ navigation }: any) {
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>BATTERY</Text>
             <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>82%</Text>
+              <Text style={styles.statValue}>{vehicle?.battery || 0}%</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: '82%' }]} />
+              <View style={[styles.progressBarFill, { width: `${vehicle?.battery || 0}%`, backgroundColor: statusColor }]} />
             </View>
           </View>
 
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>TODAY'S KM</Text>
-            <Text style={styles.statValue}>67</Text>
+            <Text style={styles.statValue}>{vehicle?.todayKm || 0}</Text>
             <Text style={styles.statSubLabel}>KILOMETERS</Text>
           </View>
 
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>CYCLES</Text>
-            <Text style={[styles.statValue, { color: '#FFFFFF' }]}>214</Text>
-            <Text style={styles.statSubLabel}>CHARGE OPS</Text>
+            <Text style={styles.statLabel}>SPEED</Text>
+            <Text style={[styles.statValue, { color: '#FFFFFF' }]}>{vehicle?.speed || 0}</Text>
+            <Text style={styles.statSubLabel}>KM/H</Text>
           </View>
         </View>
 
         {/* Revenue Section */}
-        <View style={styles.revenueCard}>
-          <View style={styles.revenueHeader}>
-            <Text style={styles.revenueLabel}>TODAY'S EARNINGS</Text>
-            <MaterialCommunityIcons name="cash-multiple" size={20} color="#888888" />
+        {vehicle?.paymentType === 'DIGITAL' && vehicle?.revenue !== null ? (
+          <View style={styles.revenueCard}>
+            <View style={styles.revenueHeader}>
+              <Text style={styles.revenueLabel}>TODAY'S EARNINGS</Text>
+              <MaterialCommunityIcons name="cash-multiple" size={20} color="#888888" />
+            </View>
+            <Text style={styles.revenueAmount}>৳{vehicle?.revenue || 0}</Text>
+            <View style={styles.revenueDivider} />
+            <View style={styles.cutRow}>
+              <Text style={styles.cutLabel}>Your cut (90%)</Text>
+              <Text style={styles.cutAmount}>৳{Math.round((vehicle?.revenue || 0) * 0.9)}</Text>
+            </View>
           </View>
-          <Text style={styles.revenueAmount}>৳670</Text>
-          <View style={styles.revenueDivider} />
-          <View style={styles.cutRow}>
-            <Text style={styles.cutLabel}>Your cut (90%)</Text>
-            <Text style={styles.cutAmount}>৳603</Text>
+        ) : (
+          <View style={styles.revenueCard}>
+            <View style={styles.revenueHeader}>
+              <Text style={styles.revenueLabel}>DAILY RENT</Text>
+              <MaterialCommunityIcons name="cash" size={20} color="#888888" />
+            </View>
+            <Text style={styles.revenueAmount}>৳{vehicle?.dailyRent || 0}</Text>
+            <View style={styles.revenueDivider} />
+            <View style={styles.cutRow}>
+              <Text style={styles.cutLabel}>Status</Text>
+              <Text style={[styles.cutAmount, { color: vehicle?.paymentStatus === 'PAID' ? '#22C55E' : '#EF4444' }]}>
+                {vehicle?.paymentStatus || 'UNPAID'}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Kill Switch Card */}
         <View style={[styles.killSwitchCard, !engineOn && styles.killSwitchCardOff]}>
@@ -185,12 +231,14 @@ export default function VehicleDetailScreen({ navigation }: any) {
       </ScrollView>
 
       {/* Sticky Bottom Button */}
-      <View style={styles.bottomContainer}>
-        <TouchableOpacity style={styles.topUpButton}>
-          <MaterialCommunityIcons name="wallet-outline" size={20} color="#FF6600" />
-          <Text style={styles.topUpButtonText}>TOP UP DRIVER WALLET</Text>
-        </TouchableOpacity>
-      </View>
+      {vehicle?.paymentType === 'DIGITAL' && (
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity style={styles.topUpButton}>
+            <MaterialCommunityIcons name="wallet-outline" size={20} color="#FF6600" />
+            <Text style={styles.topUpButtonText}>TOP UP DRIVER WALLET</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Toast Notification */}
       {toast.visible && (
@@ -235,7 +283,7 @@ export default function VehicleDetailScreen({ navigation }: any) {
               
               <Text style={styles.sheetBody}>
                 You are remotely {pendingAction === 'disable' ? 'disabling' : 'enabling'}{'\n'}
-                <Text style={styles.sheetBodyBold}>VH-001</Text> — Rahman's vehicle.{'\n'}
+                <Text style={styles.sheetBodyBold}>{vehicle?.id}</Text> — {driver ? `${driver.name}'s vehicle.` : 'Unassigned vehicle.'}{'\n'}
                 The engine will {pendingAction === 'disable' ? 'stop' : 'start'}.
               </Text>
               
@@ -358,9 +406,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#1E1E1E',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  mapImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  pin: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
+    elevation: 5,
   },
   liveGpsBadge: {
     position: 'absolute',
